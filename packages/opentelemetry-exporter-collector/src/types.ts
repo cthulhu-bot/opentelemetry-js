@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { SpanKind, Status } from '@opentelemetry/types';
+import { SpanKind, Status } from "@opentelemetry/types";
 
 // header to prevent instrumentation on request
-export const OT_REQUEST_HEADER = 'x-opentelemetry-outgoing-request';
+export const OT_REQUEST_HEADER = "x-opentelemetry-outgoing-request";
 
 /**
  * {@link https://github.com/open-telemetry/opentelemetry-proto/blob/master/opentelemetry/proto/agent/common/v1/common.proto#L66}
@@ -25,7 +25,7 @@ export const OT_REQUEST_HEADER = 'x-opentelemetry-outgoing-request';
 export const enum LibraryInfoLanguage {
   LANGUAGE_UNSPECIFIED = 0,
   NODE_JS = 6,
-  WEB_JS = 10,
+  WEB_JS = 10
 }
 
 export interface AttributeMap {
@@ -119,8 +119,8 @@ export interface LibraryInfo {
 /**
  * A pointer from the current span to another span in the same trace or in a
  * different trace. For example, this can be used in batching operations, where
- * a single batch handler processes multiple requests from different traces or
- * when the handler receives a request from a different project.
+ * a single batch instrument processes multiple requests from different traces or
+ * when the instrument receives a request from a different project.
  */
 export interface Link {
   /**
@@ -172,7 +172,7 @@ export const enum LinkType {
   /** The linked span is a child of the current span. */
   CHILD_LINKED_SPAN,
   /** The linked span is a parent of the current span. */
-  PARENT_LINKED_SPAN,
+  PARENT_LINKED_SPAN
 }
 
 /**
@@ -209,7 +209,7 @@ export const enum MessageEventType {
   /** Indicates a sent message. */
   MESSAGE_EVENT_TYPE_SENT,
   /** Indicates a received message. */
-  MESSAGE_EVENT_TYPE_RECEIVED,
+  MESSAGE_EVENT_TYPE_RECEIVED
 }
 
 /**

@@ -28,7 +28,7 @@ module.exports.countAllRequests = () => {
   return (req, res, next) => {
     if (!handles.has(req.path)) {
       const labelSet = meter.labels({ route: req.path });
-      const handle = requestCount.getHandle(labelSet);
+      const handle = requestCount.bind(labelSet);
       handles.set(req.path, handle);
     }
 

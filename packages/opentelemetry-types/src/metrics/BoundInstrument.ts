@@ -17,8 +17,8 @@
 import { DistributedContext } from '../distributed_context/DistributedContext';
 import { SpanContext } from '../trace/span_context';
 
-/** A Handle for Counter Metric. */
-export interface CounterHandle {
+/** An Instrument for Counter Metric. */
+export interface CounterInstrument {
   /**
    * Adds the given value to the current value. Values cannot be negative.
    * @param value the value to add.
@@ -26,8 +26,8 @@ export interface CounterHandle {
   add(value: number): void;
 }
 
-/** A Handle for Gauge Metric. */
-export interface GaugeHandle {
+/** An Instrument for Gauge Metric. */
+export interface GaugeInstrument {
   /**
    * Sets the given value. Values can be negative.
    * @param value the new value.
@@ -36,7 +36,7 @@ export interface GaugeHandle {
 }
 
 /** Measure to report instantaneous measurement of a value. */
-export interface MeasureHandle {
+export interface MeasureInstrument {
   /**
    * Records the given value to this measure.
    * @param value the measurement to record.

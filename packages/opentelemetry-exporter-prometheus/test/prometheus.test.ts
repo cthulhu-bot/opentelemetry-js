@@ -14,25 +14,25 @@
  * limitations under the License.
  */
 
-import { CounterMetric, GaugeMetric, Meter } from '@opentelemetry/metrics';
-import * as assert from 'assert';
-import * as http from 'http';
-import { PrometheusExporter } from '../src';
+import { CounterMetric, GaugeMetric, Meter } from "@opentelemetry/metrics";
+import * as assert from "assert";
+import * as http from "http";
+import { PrometheusExporter } from "../src";
 
-describe('PrometheusExporter', () => {
-  describe('constructor', () => {
-    it('should construct an exporter', () => {
+describe("PrometheusExporter", () => {
+  describe("constructor", () => {
+    it("should construct an exporter", () => {
       const exporter = new PrometheusExporter();
-      assert.ok(typeof exporter.startServer === 'function');
-      assert.ok(typeof exporter.shutdown === 'function');
+      assert.ok(typeof exporter.startServer === "function");
+      assert.ok(typeof exporter.shutdown === "function");
     });
 
-    it('should start the server if startServer is passed as an option', done => {
+    it("should start the server if startServer is passed as an option", done => {
       const port = PrometheusExporter.DEFAULT_OPTIONS.port;
       const endpoint = PrometheusExporter.DEFAULT_OPTIONS.endpoint;
       const exporter = new PrometheusExporter(
         {
-          startServer: true,
+          startServer: true
         },
         () => {
           const url = `http://localhost:${port}${endpoint}`;
@@ -46,16 +46,16 @@ describe('PrometheusExporter', () => {
       );
     });
 
-    it('should not start the server by default', () => {
+    it("should not start the server by default", () => {
       const exporter = new PrometheusExporter();
-      assert.ok(exporter['_server']!.listening === false);
+      assert.ok(exporter["_server"]!.listening === false);
     });
   });
 
-  describe('server', () => {
-    it('it should start on startServer() and call the callback', done => {
+  describe("server", () => {
+    it("it should start on startServer() and call the callback", done => {
       const exporter = new PrometheusExporter({
-        port: 9722,
+        port: 9722
       });
       exporter.startServer(() => {
         exporter.shutdown(() => {
@@ -64,7 +64,7 @@ describe('PrometheusExporter', () => {
       });
     });
 
-    it('it should listen on the default port and default endpoint', done => {
+    it("it should listen on the default port and default endpoint", done => {
       const port = PrometheusExporter.DEFAULT_OPTIONS.port;
       const endpoint = PrometheusExporter.DEFAULT_OPTIONS.endpoint;
       const exporter = new PrometheusExporter();
@@ -80,13 +80,13 @@ describe('PrometheusExporter', () => {
       });
     });
 
-    it('it should listen on a custom port and endpoint if provided', done => {
+    it("it should listen on a custom port and endpoint if provided", done => {
       const port = 9991;
-      const endpoint = '/metric';
+      const endpoint = "/metric";
 
       const exporter = new PrometheusExporter({
         port,
-        endpoint,
+        endpoint
       });
 
       exporter.startServer(() => {
@@ -100,13 +100,13 @@ describe('PrometheusExporter', () => {
       });
     });
 
-    it('it should not require endpoints to start with a slash', done => {
+    it("it should not require endpoints to start with a slash", done => {
       const port = 9991;
-      const endpoint = 'metric';
+      const endpoint = "metric";
 
       const exporter = new PrometheusExporter({
         port,
-        endpoint,
+        endpoint
       });
 
       exporter.startServer(() => {
@@ -116,7 +116,7 @@ describe('PrometheusExporter', () => {
           exporter.shutdown(() => {
             const exporter2 = new PrometheusExporter({
               port,
-              endpoint: `/${endpoint}`,
+              endpoint: `/${endpoint}`
             });
 
             exporter2.startServer(() => {
@@ -133,12 +133,12 @@ describe('PrometheusExporter', () => {
       });
     });
 
-    it('it should return a HTTP status 404 if the endpoint does not match', done => {
+    it("it should return a HTTP status 404 if the endpoint does not match", done => {
       const port = 9912;
-      const endpoint = '/metrics';
+      const endpoint = "/metrics";
       const exporter = new PrometheusExporter({
         port,
-        endpoint,
+        endpoint
       });
       exporter.startServer(() => {
         const url = `http://localhost:${port}/invalid`;
@@ -152,7 +152,7 @@ describe('PrometheusExporter', () => {
       });
     });
 
-    it('should call a provided callback regardless of if the server is running', done => {
+    it("should call a provided callback regardless of if the server is running", done => {
       const exporter = new PrometheusExporter();
       exporter.shutdown(() => {
         return done();
@@ -160,7 +160,7 @@ describe('PrometheusExporter', () => {
     });
   });
 
-  describe('export', () => {
+  describe("export", () => {
     let exporter: PrometheusExporter;
     let meter: Meter;
 
@@ -174,218 +174,221 @@ describe('PrometheusExporter', () => {
       exporter.shutdown(done);
     });
 
-    it('should export a count aggregation', done => {
-      const counter = meter.createCounter('counter', {
-        description: 'a test description',
-        labelKeys: ['key1'],
-      }) as CounterMetric;
+    it("should export a count aggregation", done => {
+      const counter = meter.createCounter("counter", {
+        description: "a test description",
+        labelKeys: ["key1"]
+      });
 
-      const handle = counter.getHandle(meter.labels({ key1: 'labelValue1' }));
-      handle.add(10);
+      const instrument = counter.bind(meter.labels({ key1: "labelValue1" }));
+      instrument.add(10);
       exporter.export(meter.getMetrics(), () => {
         // This is to test the special case where counters are destroyed
         // and recreated in the exporter in order to get around prom-client's
         // aggregation and use ours.
-        handle.add(10);
+        instrument.add(10);
         exporter.export(meter.getMetrics(), () => {
           http
-            .get('http://localhost:9464/metrics', res => {
-              res.on('data', chunk => {
+            .get("http://localhost:9464/metrics", res => {
+              res.on("data", chunk => {
                 const body = chunk.toString();
-                const lines = body.split('\n');
+                const lines = body.split("\n");
 
                 assert.strictEqual(
                   lines[0],
-                  '# HELP counter a test description'
+                  "# HELP counter a test description"
                 );
 
                 assert.deepStrictEqual(lines, [
-                  '# HELP counter a test description',
-                  '# TYPE counter counter',
+                  "# HELP counter a test description",
+                  "# TYPE counter counter",
                   'counter{key1="labelValue1"} 20',
-                  '',
+                  ""
                 ]);
 
                 done();
               });
             })
-            .on('error', errorHandler(done));
+            .on("error", errorHandler(done));
         });
       });
     });
 
-    it('should export a gauge aggregation', done => {
-      const gauge = meter.createGauge('gauge', {
-        description: 'a test description',
-        labelKeys: ['key1'],
+    it("should export a gauge aggregation", done => {
+      const gauge = meter.createGauge("gauge", {
+        description: "a test description",
+        labelKeys: ["key1"]
       }) as GaugeMetric;
 
-      const handle = gauge.getHandle(meter.labels({ key1: 'labelValue1' }));
-      handle.set(10);
+      const instrument = gauge.bind(meter.labels({ key1: "labelValue1" }));
+      instrument.set(10);
       exporter.export([gauge.get()!], () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
               const body = chunk.toString();
-              const lines = body.split('\n');
+              const lines = body.split("\n");
 
               assert.deepStrictEqual(lines, [
-                '# HELP gauge a test description',
-                '# TYPE gauge gauge',
+                "# HELP gauge a test description",
+                "# TYPE gauge gauge",
                 'gauge{key1="labelValue1"} 10',
-                '',
+                ""
               ]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
 
-    it('should export a multiple aggregations', done => {
-      const gauge = meter.createGauge('gauge', {
-        description: 'a test description',
-        labelKeys: ['gaugeKey1'],
+    it("should export multiple aggregations", done => {
+      const gauge = meter.createGauge("gauge", {
+        description: "a test description",
+        labelKeys: ["gaugeKey1"]
       }) as GaugeMetric;
 
-      const counter = meter.createCounter('counter', {
-        description: 'a test description',
-        labelKeys: ['counterKey1'],
+      const counter = meter.createCounter("counter", {
+        description: "a test description",
+        labelKeys: ["counterKey1"]
       }) as CounterMetric;
 
-      gauge.getHandle(meter.labels({ key1: 'labelValue1' })).set(10);
-      counter.getHandle(meter.labels({ key1: 'labelValue1' })).add(10);
+      const gaugeInstrument = gauge.bind(meter.labels({ key1: "labelValue1" }));
+      gaugeInstrument.set(10);
+      const counterInstrument = counter.bind(
+        meter.labels({ key1: "labelValue1" })
+      );
+      counterInstrument.add(10);
       exporter.export([gauge.get()!, counter.get()!], () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
               const body = chunk.toString();
-              const lines = body.split('\n');
+              const lines = body.split("\n");
 
               assert.deepStrictEqual(lines, [
-                '# HELP gauge a test description',
-                '# TYPE gauge gauge',
+                "# HELP gauge a test description",
+                "# TYPE gauge gauge",
                 'gauge{gaugeKey1="labelValue1"} 10',
-                '',
-                '# HELP counter a test description',
-                '# TYPE counter counter',
+                "",
+                "# HELP counter a test description",
+                "# TYPE counter counter",
                 'counter{counterKey1="labelValue1"} 10',
-                '',
+                ""
               ]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
 
-    it('should export a comment if no metrics are registered', done => {
+    it("should export a comment if no metrics are registered", done => {
       exporter.export([], () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
               const body = chunk.toString();
-              const lines = body.split('\n');
+              const lines = body.split("\n");
 
-              assert.deepStrictEqual(lines, ['# no registered metrics']);
+              assert.deepStrictEqual(lines, ["# no registered metrics"]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
 
-    it('should add a description if missing', done => {
-      const gauge = meter.createGauge('gauge') as GaugeMetric;
+    it("should add a description if missing", done => {
+      const gauge = meter.createGauge("gauge") as GaugeMetric;
 
-      const handle = gauge.getHandle(meter.labels({ key1: 'labelValue1' }));
-      handle.set(10);
+      const instrument = gauge.bind(meter.labels({ key1: "labelValue1" }));
+      instrument.set(10);
       exporter.export([gauge.get()!], () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
               const body = chunk.toString();
-              const lines = body.split('\n');
+              const lines = body.split("\n");
 
               assert.deepStrictEqual(lines, [
-                '# HELP gauge description missing',
-                '# TYPE gauge gauge',
-                'gauge 10',
-                '',
+                "# HELP gauge description missing",
+                "# TYPE gauge gauge",
+                "gauge 10",
+                ""
               ]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
 
-    it('should sanitize names', done => {
-      const gauge = meter.createGauge('gauge.bad-name') as GaugeMetric;
-      const handle = gauge.getHandle(meter.labels({ key1: 'labelValue1' }));
-      handle.set(10);
+    it("should sanitize names", done => {
+      const gauge = meter.createGauge("gauge.bad-name") as GaugeMetric;
+      const instrument = gauge.bind(meter.labels({ key1: "labelValue1" }));
+      instrument.set(10);
       exporter.export([gauge.get()!], () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
               const body = chunk.toString();
-              const lines = body.split('\n');
+              const lines = body.split("\n");
 
               assert.deepStrictEqual(lines, [
-                '# HELP gauge_bad_name description missing',
-                '# TYPE gauge_bad_name gauge',
-                'gauge_bad_name 10',
-                '',
+                "# HELP gauge_bad_name description missing",
+                "# TYPE gauge_bad_name gauge",
+                "gauge_bad_name 10",
+                ""
               ]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
 
-    it('should export a non-monotonic counter as a gauge', done => {
-      const counter = meter.createCounter('counter', {
-        description: 'a test description',
+    it("should export a non-monotonic counter as a gauge", done => {
+      const counter = meter.createCounter("counter", {
+        description: "a test description",
         monotonic: false,
-        labelKeys: ['key1'],
-      }) as CounterMetric;
+        labelKeys: ["key1"]
+      });
 
-      const handle = counter.getHandle(meter.labels({ key1: 'labelValue1' }));
-      handle.add(20);
+      counter.bind(meter.labels({ key1: "labelValue1" })).add(20);
       exporter.export(meter.getMetrics(), () => {
         http
-          .get('http://localhost:9464/metrics', res => {
-            res.on('data', chunk => {
-              assert.deepStrictEqual(chunk.toString().split('\n'), [
-                '# HELP counter a test description',
-                '# TYPE counter gauge',
+          .get("http://localhost:9464/metrics", res => {
+            res.on("data", chunk => {
+              assert.deepStrictEqual(chunk.toString().split("\n"), [
+                "# HELP counter a test description",
+                "# TYPE counter gauge",
                 'counter{key1="labelValue1"} 20',
-                '',
+                ""
               ]);
 
               done();
             });
           })
-          .on('error', errorHandler(done));
+          .on("error", errorHandler(done));
       });
     });
   });
 
-  describe('configuration', () => {
+  describe("configuration", () => {
     let meter: Meter;
     let gauge: GaugeMetric;
     let exporter: PrometheusExporter | undefined;
 
     beforeEach(() => {
       meter = new Meter();
-      gauge = meter.createGauge('gauge') as GaugeMetric;
-      gauge.getHandle(meter.labels({ key1: 'labelValue1' })).set(10);
+      gauge = meter.createGauge("gauge") as GaugeMetric;
+      gauge.bind(meter.labels({ key1: "labelValue1" })).set(10);
     });
 
     afterEach(done => {
@@ -397,86 +400,87 @@ describe('PrometheusExporter', () => {
       }
     });
 
-    it('should use a configured name prefix', done => {
+    it("should use a configured name prefix", done => {
+      gauge.bind(meter.labels({ key1: "labelValue1" })).set(10);
       exporter = new PrometheusExporter({
-        prefix: 'test_prefix',
+        prefix: "test_prefix"
       });
 
       exporter.startServer(() => {
         exporter!.export(meter.getMetrics(), () => {
           http
-            .get('http://localhost:9464/metrics', res => {
-              res.on('data', chunk => {
+            .get("http://localhost:9464/metrics", res => {
+              res.on("data", chunk => {
                 const body = chunk.toString();
-                const lines = body.split('\n');
+                const lines = body.split("\n");
 
                 assert.deepStrictEqual(lines, [
-                  '# HELP test_prefix_gauge description missing',
-                  '# TYPE test_prefix_gauge gauge',
-                  'test_prefix_gauge 10',
-                  '',
+                  "# HELP test_prefix_gauge description missing",
+                  "# TYPE test_prefix_gauge gauge",
+                  "test_prefix_gauge 10",
+                  ""
                 ]);
 
                 done();
               });
             })
-            .on('error', errorHandler(done));
+            .on("error", errorHandler(done));
         });
       });
     });
 
-    it('should use a configured port', done => {
+    it("should use a configured port", done => {
       exporter = new PrometheusExporter({
-        port: 8080,
+        port: 8080
       });
 
       exporter.startServer(() => {
         exporter!.export(meter.getMetrics(), () => {
           http
-            .get('http://localhost:8080/metrics', res => {
-              res.on('data', chunk => {
+            .get("http://localhost:8080/metrics", res => {
+              res.on("data", chunk => {
                 const body = chunk.toString();
-                const lines = body.split('\n');
+                const lines = body.split("\n");
 
                 assert.deepStrictEqual(lines, [
-                  '# HELP gauge description missing',
-                  '# TYPE gauge gauge',
-                  'gauge 10',
-                  '',
+                  "# HELP gauge description missing",
+                  "# TYPE gauge gauge",
+                  "gauge 10",
+                  ""
                 ]);
 
                 done();
               });
             })
-            .on('error', errorHandler(done));
+            .on("error", errorHandler(done));
         });
       });
     });
 
-    it('should use a configured endpoint', done => {
+    it("should use a configured endpoint", done => {
       exporter = new PrometheusExporter({
-        endpoint: '/test',
+        endpoint: "/test"
       });
 
       exporter.startServer(() => {
         exporter!.export(meter.getMetrics(), () => {
           http
-            .get('http://localhost:9464/test', res => {
-              res.on('data', chunk => {
+            .get("http://localhost:9464/test", res => {
+              res.on("data", chunk => {
                 const body = chunk.toString();
-                const lines = body.split('\n');
+                const lines = body.split("\n");
 
                 assert.deepStrictEqual(lines, [
-                  '# HELP gauge description missing',
-                  '# TYPE gauge gauge',
-                  'gauge 10',
-                  '',
+                  "# HELP gauge description missing",
+                  "# TYPE gauge gauge",
+                  "gauge 10",
+                  ""
                 ]);
 
                 done();
               });
             })
-            .on('error', errorHandler(done));
+            .on("error", errorHandler(done));
         });
       });
     });
@@ -485,7 +489,7 @@ describe('PrometheusExporter', () => {
 
 function errorHandler(done: Mocha.Done): (err: Error) => void {
   return () => {
-    assert.ok(false, 'error getting metrics');
+    assert.ok(false, "error getting metrics");
     done();
   };
 }

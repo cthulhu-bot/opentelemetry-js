@@ -14,32 +14,32 @@
  * limitations under the License.
  */
 
-import * as types from '@opentelemetry/types';
+import * as types from "@opentelemetry/types";
 import {
   ConsoleLogger,
   NOOP_COUNTER_METRIC,
   NOOP_GAUGE_METRIC,
-  NOOP_MEASURE_METRIC,
-} from '@opentelemetry/core';
-import { BaseHandle } from './Handle';
-import { Metric, CounterMetric, GaugeMetric } from './Metric';
+  NOOP_MEASURE_METRIC
+} from "@opentelemetry/core";
+import { BaseInstrument } from "./BoundInstrument";
+import { Metric, CounterMetric, GaugeMetric } from "./Metric";
 import {
   MetricOptions,
   DEFAULT_METRIC_OPTIONS,
   DEFAULT_CONFIG,
-  MeterConfig,
-} from './types';
-import { LabelSet } from './LabelSet';
-import { ReadableMetric, MetricExporter } from './export/types';
-import { notNull } from './Utils';
-import { ExportResult } from '@opentelemetry/base';
+  MeterConfig
+} from "./types";
+import { LabelSet } from "./LabelSet";
+import { ReadableMetric, MetricExporter } from "./export/types";
+import { notNull } from "./Utils";
+import { ExportResult } from "@opentelemetry/base";
 
 /**
  * Meter is an implementation of the {@link Meter} interface.
  */
 export class Meter implements types.Meter {
   private readonly _logger: types.Logger;
-  private readonly _metrics = new Map<string, Metric<BaseHandle>>();
+  private readonly _metrics = new Map<string, Metric<BaseInstrument>>();
   private readonly _exporters: MetricExporter[] = [];
 
   readonly labels = Meter.labels;
@@ -59,7 +59,7 @@ export class Meter implements types.Meter {
   createMeasure(
     name: string,
     options?: types.MetricOptions
-  ): types.Metric<types.MeasureHandle> {
+  ): types.Metric<types.MeasureInstrument> {
     if (!this._isValidName(name)) {
       this._logger.warn(
         `Invalid metric name ${name}. Defaulting to noop metric implementation.`
@@ -67,7 +67,7 @@ export class Meter implements types.Meter {
       return NOOP_MEASURE_METRIC;
     }
     // @todo: implement this method
-    throw new Error('not implemented yet');
+    throw new Error("not implemented yet");
   }
 
   /**
@@ -80,7 +80,7 @@ export class Meter implements types.Meter {
   createCounter(
     name: string,
     options?: types.MetricOptions
-  ): types.Metric<types.CounterHandle> {
+  ): types.Metric<types.CounterInstrument> {
     if (!this._isValidName(name)) {
       this._logger.warn(
         `Invalid metric name ${name}. Defaulting to noop metric implementation.`
@@ -92,7 +92,7 @@ export class Meter implements types.Meter {
       monotonic: true,
       logger: this._logger,
       ...DEFAULT_METRIC_OPTIONS,
-      ...options,
+      ...options
     };
     const counter = new CounterMetric(name, opt, () => {
       this._exportOneMetric(name);
@@ -112,7 +112,7 @@ export class Meter implements types.Meter {
   createGauge(
     name: string,
     options?: types.MetricOptions
-  ): types.Metric<types.GaugeHandle> {
+  ): types.Metric<types.GaugeInstrument> {
     if (!this._isValidName(name)) {
       this._logger.warn(
         `Invalid metric name ${name}. Defaulting to noop metric implementation.`
@@ -124,7 +124,7 @@ export class Meter implements types.Meter {
       monotonic: false,
       logger: this._logger,
       ...DEFAULT_METRIC_OPTIONS,
-      ...options,
+      ...options
     };
     const gauge = new GaugeMetric(name, opt, () => {
       this._exportOneMetric(name);
@@ -162,10 +162,10 @@ export class Meter implements types.Meter {
     const keys = Object.keys(labels).sort();
     const identifier = keys.reduce((result, key) => {
       if (result.length > 2) {
-        result += ',';
+        result += ",";
       }
-      return (result += key + ':' + labels[key]);
-    }, '|#');
+      return (result += key + ":" + labels[key]);
+    }, "|#");
     const sortedLabels: types.Labels = {};
     keys.forEach(key => {
       sortedLabels[key] = labels[key];
@@ -197,7 +197,7 @@ export class Meter implements types.Meter {
    * @param name The name of the metric.
    * @param metric The metric to register.
    */
-  private _registerMetric<T extends BaseHandle>(
+  private _registerMetric<T extends BaseInstrument>(
     name: string,
     metric: Metric<T>
   ): void {
